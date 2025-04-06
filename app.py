@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 import time
 import shutil
-from logic.receipt_analyzer import ReceiptAnalyzer
-from logic.receipt_matcher import ReceiptMatcher
+from receipt_analyzer import ReceiptAnalyzer
+from receipt_matcher import ReceiptMatcher
 
 # Configuration de la page Streamlit
 st.set_page_config(
