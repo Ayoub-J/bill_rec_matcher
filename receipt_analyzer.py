@@ -6,7 +6,25 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 from dotenv import load_dotenv
-from mistralai import Mistral
+
+# Modifier l'importation de Mistral pour être compatible avec différentes versions
+try:
+    from mistralai.client import MistralClient as Mistral
+except ImportError:
+    try:
+        from mistralai.client.mistral_client import MistralClient as Mistral
+    except ImportError:
+        try:
+            from mistralai import Mistral
+        except ImportError:
+            raise ImportError("Impossible d'importer la classe Mistral. Vérifiez votre installation.")
+
+# Import conditionnel de streamlit pour les déploiements Cloud
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
 
 
 class ReceiptAnalyzer:
@@ -32,7 +50,8 @@ class ReceiptAnalyzer:
         env_path: Optional[str] = None,
         batch_size: int = DEFAULT_BATCH_SIZE,
         delay_between_batches: int = DEFAULT_DELAY_BETWEEN_BATCHES,
-        consolidated_output: str = "all_results.json"
+        consolidated_output: str = "all_results.json",
+        api_key: Optional[str] = None
     ):
         """
         Initialisation de l'analyseur de reçus.
@@ -46,20 +65,15 @@ class ReceiptAnalyzer:
             batch_size: Nombre d'images à traiter par lot
             delay_between_batches: Délai en secondes entre chaque lot
             consolidated_output: Nom du fichier pour la sortie consolidée de tous les résultats
+            api_key: Clé API Mistral fournie directement (prioritaire sur les autres méthodes)
         """
         # Configuration du logging
         self._setup_logging()
         
-        # Chargement des variables d'environnement
-        if env_path:
-            load_dotenv(env_path)
-        else:
-            load_dotenv()
-        
-        # Vérification de la clé API
-        self.api_key = os.getenv("MISTRAL_API_KEY")
+        # Vérification de la clé API (plusieurs sources possibles)
+        self.api_key = api_key or self._get_api_key(env_path)
         if not self.api_key:
-            raise ValueError("La clé API Mistral est manquante. Définissez la variable MISTRAL_API_KEY dans votre fichier .env")
+            raise ValueError("La clé API Mistral est manquante. Fournissez-la via api_key, le secret Streamlit ou un fichier .env")
         
         # Initialisation du client Mistral
         self.client = Mistral(api_key=self.api_key)
@@ -87,6 +101,51 @@ class ReceiptAnalyzer:
         
         self.logger.info(f"ReceiptAnalyzer initialisé avec: model={model}, "
                          f"receipts_dir={self.receipts_dir}, output_dir={self.output_dir}")
+
+    def _get_api_key(self, env_path: Optional[str] = None) -> str:
+        """
+        Obtient la clé API Mistral de diverses sources.
+        
+        Args:
+            env_path: Chemin vers le fichier .env
+            
+        Returns:
+            La clé API Mistral ou une chaîne vide si non trouvée
+        """
+        # 1. Essayer d'abord les secrets Streamlit (pour déploiement cloud)
+        if STREAMLIT_AVAILABLE:
+            try:
+                return st.secrets["MISTRAL_API_KEY"]
+            except:
+                self.logger.warning("Pas de secret Streamlit 'MISTRAL_API_KEY' trouvé")
+        
+        # 2. Essayer les variables d'environnement
+        api_key = os.environ.get("MISTRAL_API_KEY")
+        if api_key:
+            return api_key
+        
+        # 3. Charger depuis un fichier .env
+        if env_path:
+            load_dotenv(env_path)
+        else:
+            load_dotenv()
+        
+        api_key = os.getenv("MISTRAL_API_KEY")
+        if api_key:
+            return api_key
+        
+        # 4. Essayer de lire directement le fichier .env si présent
+        env_path = Path(".env")
+        if env_path.exists():
+            try:
+                with open(env_path, "r") as f:
+                    for line in f:
+                        if line.startswith("MISTRAL_API_KEY="):
+                            return line.split("=")[1].strip()
+            except Exception as e:
+                self.logger.error(f"Erreur lors de la lecture du fichier .env: {e}")
+        
+        return ""
 
     def _setup_logging(self) -> None:
         """Configure le système de journalisation."""
@@ -223,14 +282,31 @@ class ReceiptAnalyzer:
         ]
         
         # Appeler l'API
-        response = self.client.chat.complete(
-            model=self.model,
-            messages=messages,
-            response_format={"type": "json_object"}
-        )
-        
-        # Analyser la réponse
-        result = json.loads(response.choices[0].message.content)
+        try:
+            # Version 1: Nouvelle version de l'API
+            response = self.client.chat.complete(
+                model=self.model,
+                messages=messages,
+                response_format={"type": "json_object"}
+            )
+            result = json.loads(response.choices[0].message.content)
+        except AttributeError:
+            try:
+                # Version 2: Ancienne version de l'API
+                response = self.client.chat_completions(
+                    model=self.model,
+                    messages=messages,
+                    response_format={"type": "json_object"}
+                )
+                result = json.loads(response.choices[0].message.content)
+            except:
+                # Version 3: Encore plus ancienne version possible
+                response = self.client.chat(
+                    model=self.model,
+                    messages=messages,
+                    response_format={"type": "json_object"}
+                )
+                result = json.loads(response.choices[0].message.content)
         
         # Ajouter des métadonnées
         result["_metadata"] = {
