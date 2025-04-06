@@ -17,7 +17,7 @@ Une application complète pour extraire des informations des factures à l'aide 
   1. Cloner ce dépot ou télécgargez les fichiers
   2. Installez les dépendences :
  
-  ```bash
+```bash
 pip install -r requirements.txt
 ```
 3. Configurez votre clé API Mistral 
