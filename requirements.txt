@@ -1,7 +1,8 @@
-streamlit
-pandas
-mistralai
-python-dotenv
-rapidfuzz
-pathlib
-pillow
+
+streamlit==1.31.0
+pandas==2.1.3
+mistralai>=0.5.1
+python-dotenv==1.0.0
+rapidfuzz==3.5.2
+pathlib==1.0.1
+pillow==10.1.0
