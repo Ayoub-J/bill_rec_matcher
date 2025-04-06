@@ -29,7 +29,7 @@ MISTRAL_API_KEY=votre_clé_api_ici
 
 ## Structures du projets
 
-
+```
 ├── app.py                      # Application Streamlit principale
 ├── receipt_analyzer.py         # Classe pour l'analyse des factures 
 ├── receipt_matcher.py          # Classe pour le matching avec les relevés
@@ -42,7 +42,7 @@ MISTRAL_API_KEY=votre_clé_api_ici
 └── output/                     # Dossier pour les résultats
     ├── receipts/               # Résultats d'analyse des factures
     └── matching/               # Résultats du matching
-    
+```
 
 ##Utilisation
 - lancement de l'application :
