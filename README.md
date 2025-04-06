@@ -44,7 +44,6 @@ MISTRAL_API_KEY=votre_clé_api_ici
     └── matching/               # Résultats du matching
     
 
-
 ##Utilisation
 - lancement de l'application :
 ```bash
