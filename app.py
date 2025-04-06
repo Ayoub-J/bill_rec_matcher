@@ -8,6 +8,7 @@ import shutil
 from receipt_analyzer import ReceiptAnalyzer
 from receipt_matcher import ReceiptMatcher
 
+
 # Configuration de la page Streamlit
 st.set_page_config(
     page_title="Analyseur de Factures et Matching Bancaire",
